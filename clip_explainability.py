@@ -217,6 +217,61 @@ def jacob_svd(title, jacob, sv_indices=[]):
     return U, S, Vt
 
 
+
+def push_img_to_embedding(img, 
+                          tgt_embed, 
+                          tgt_num, 
+                          data_list, 
+                          save_every=10, 
+                          threshold=0.1, 
+                          lr=1., 
+                          max_iters=500, 
+                          num_cutouts=32, 
+                          root=True):
+
+    img.requires_grad = True
+    optimizer = torch.optim.SGD(params=[img], lr=lr)
+
+    step = 0
+    loss = 10
+    took_max_steps = False
+
+    embed_image_func = get_embedding_function(freq_reg=False, num_cutouts=num_cutouts)
+
+    while loss > threshold:
+
+        # embed image
+        embed = embed_image_func(img).float()
+
+        # compute loss
+        if root:
+            loss = torch.norm(input=embed - tgt_embed, p='fro')
+        else:
+            loss = torch.norm(input=embed - tgt_embed, p='fro') ** 2
+
+        # update image pixels
+        optimizer.zero_grad()
+        loss.backward(retain_graph=True)
+        optimizer.step()
+
+        # increment iter steps
+        step += 1
+
+        # collect data
+        if step % save_every == 1:
+            data_list.append([tgt_num, step, loss.item(), img.max().item(), img.min().item(), img.grad.norm().item()])
+        
+        # break loop after reaching max_iters iters
+        if step == max_iters:
+            took_max_steps = True
+            data_list.append([tgt_num, step, loss.item(), img.max().item(), img.min().item(), img.grad.norm().item()])
+            print("break optimization")
+            break
+    
+    print(f"Optimized img in {step} steps, with final loss={loss}")
+    return img, data_list, took_max_steps
+
+
 def clip_dream(img_fp: str,
                title: str,
                theta: int = 1,
@@ -392,61 +447,7 @@ def clip_dream(img_fp: str,
     # # create video
     # if make_vid:
     #     make_video(frames_path=title)
-              
-
-def push_img_to_embedding(img, 
-                          tgt_embed, 
-                          tgt_num, 
-                          data_list, 
-                          save_every=10, 
-                          threshold=0.1, 
-                          lr=1., 
-                          max_iters=500, 
-                          num_cutouts=32, 
-                          root=True):
-
-    img.requires_grad = True
-    optimizer = torch.optim.SGD(params=[img], lr=lr)
-
-    step = 0
-    loss = 10
-    took_max_steps = False
-
-    embed_image_func = get_embedding_function(freq_reg=False, num_cutouts=num_cutouts)
-
-    while loss > threshold:
-
-        # embed image
-        embed = embed_image_func(img).float()
-
-        # compute loss
-        if root:
-            loss = torch.norm(input=embed - tgt_embed, p='fro')
-        else:
-            loss = torch.norm(input=embed - tgt_embed, p='fro') ** 2
-
-        # update image pixels
-        optimizer.zero_grad()
-        loss.backward(retain_graph=True)
-        optimizer.step()
-
-        # increment iter steps
-        step += 1
-
-        # collect data
-        if step % save_every == 1:
-            data_list.append([tgt_num, step, loss.item(), img.max().item(), img.min().item(), img.grad.norm().item()])
-        
-        # break loop after reaching max_iters iters
-        if step == max_iters:
-            took_max_steps = True
-            data_list.append([tgt_num, step, loss.item(), img.max().item(), img.min().item(), img.grad.norm().item()])
-            print("break optimization")
-            break
-    
-    print(f"Optimized img in {step} steps, with final loss={loss}")
-    return img, data_list, took_max_steps
-
+            
 
 def make_video(frames_path, fps=5):
     os.system(f"ffmpeg -framerate {fps} -i ./Images/{frames_path}/dream_iter%04d.png -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p ./Images/{frames_path}/clip_dream.mp4")
