@@ -6,6 +6,7 @@ from typing import Optional
 import numpy as np
 import matplotlib as plt
 import pandas
+import argparse
 
 import torch
 from torchvision import io, utils
@@ -14,8 +15,6 @@ from torch.fft import *
 
 from clip import load, tokenize
 
-# load CLIP model
-perceptor, normalize_image = load("ViT-B/32", jit=False)
 
 def rand_cutout(image, size, center_bias=False, center_focus=2):
     width = image.shape[-1]
@@ -454,14 +453,23 @@ def make_video(frames_path, fps=5):
 
 
 if __name__ == "__main__":
-    print("blah")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    parser = argparse.ArgumentParser()
+   
+    parser.add_argument('--name', type=str, required=True)
+    # Parse the argument
+    args = parser.parse_args()
+    
+    # load CLIP model
+    perceptor, normalize_image = load("ViT-B/32", jit=False)
 
     clip_dream(img_fp="Images/bird.jpg",
                title="clip_dream2/exp6",
                num_dream_steps=25,
                theta=1,
                sv_index=2,
-               threshold=0.1,  # previously was 0.002
+               threshold=0.1, 
                eps=1e-6,
                num_cutouts=32,
                freq_reg='norm',
