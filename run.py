@@ -4,7 +4,7 @@ import math
 import kornia as K
 from typing import Optional
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
 import pandas
 import argparse
 from datetime import datetime
@@ -63,7 +63,7 @@ def get_cutouts(img, num_cutouts, legal_cutouts):
         size = legal_cutouts[torch.argmin(torch.abs(legal_cutouts - size))].cpu().item()
 
         # get random cutout of given size
-        random_cutout = rand_cutout(img, size, center_bias=False).cuda()  # shape (1, 3, size, size)
+        random_cutout = rand_cutout(img, size, center_bias=False).to(device)  # shape (1, 3, size, size)
 
         # up/down sample to 224x224
         random_cutout = K.geometry.resize(random_cutout, (224, 224), antialias=True)  # shape (1, 3, 224, 224)
@@ -103,7 +103,7 @@ def embed_image(img, img_fft_abs=1, eps=1e-6, num_cutouts=32, freq_reg=None):
     im_size = img.shape[2]
 
     # define legal cutout sizes
-    legal_cutouts = torch.arange(start=1, end=16, step=1, dtype=torch.float32).cuda()
+    legal_cutouts = torch.arange(start=1, end=16, step=1, dtype=torch.float32).to(device)
     legal_cutouts = torch.round((im_size * 7) / (7 + legal_cutouts)).int()
 
     # sample cutouts from image and normalize
@@ -183,14 +183,12 @@ def jacob_svd(jacob, save_path, sv_indices=[], save_results=True):
         plt.savefig(save_path + "/SV_jacob/sing_vals.png")
         
         # visualize and save the preimage of the left singular vectors in pixel space
-        U = torch.from_numpy(U)
-        
         for sv_index in sv_indices:
             singular_value = U[:, sv_index] # shape (512)
-            sv_preimage = jacob.t() @ singular_value # shape (3*im_size*im_size)
-            sv_preimage.view(3, im_size, im_size) # shape (3, im_size, im_size)
+            sv_preimage, _, _, _ = np.linalg.lstsq(jacob, singular_value, rcond=None)
+            sv_preimage = np.reshape(sv_preimage, (3, im_size, im_size)) # shape (3, im_size, im_size)
             
-            vmin, vmax = torch.quantile(input=sv_preimage.abs(), q=torch.tensor([0., 1.]))
+            vmin, vmax = np.quantile(a=np.absolute(sv_preimage), q=torch.tensor([0.01, 0.99]))
             
             # Plot the RGB channels of sv preimage separately (yellow = 1, purple = 0)
             fig = plt.figure(figsize=(30, 10))
@@ -223,11 +221,11 @@ def push_img_to_embedding(img,
                           tgt_embed, 
                           tgt_num, 
                           data_list, 
-                          save_every, 
                           threshold, 
                           lr, 
                           max_iters, 
-                          num_cutouts):
+                          num_cutouts,
+                          save_every):
 
     img.requires_grad = True
     optimizer = torch.optim.SGD(params=[img], lr=lr)
@@ -262,7 +260,6 @@ def push_img_to_embedding(img,
         if step == max_iters:
             took_max_steps = True
             data_list.append([tgt_num, step, loss.item(), img.max().item(), img.min().item(), img.grad.norm().item()])
-            print("break optimization")
             break
     
     print(f"Optimized img in {step} steps, with final loss={loss}")
@@ -299,6 +296,8 @@ def clip_dream(img_fp,
     
     try:
         os.makedirs(save_path)
+        os.makedirs(save_path + "/CLIP_dream")
+        os.makedirs(save_path + "/SV_jacob")
     except:
         pass
     
@@ -306,7 +305,7 @@ def clip_dream(img_fp,
     img = img / 255  # put pixels in range [0, 1]
     img = torch.unsqueeze(img, dim=0).float()  # shape (1, 3, 512, 512)
 
-    utils.save_image(img.float().squeeze(), save_path + f"/dream_iter{0:>04d}.png")
+    utils.save_image(img.float().squeeze(), save_path + f"/CLIP_dream/dream_iter{0:>04d}.png")
 
     if freq_reg == 'norm':
         img_fft = rfft2(img)  # shape (1, 3, 512, 257)
@@ -331,7 +330,7 @@ def clip_dream(img_fp,
 
     # get tangent vector to image_embedding
     if rand_dir: # get random tangent vector
-        v_rand = torch.rand(512).half().cuda()
+        v_rand = torch.rand(512).half().to(device)
         v_tang = v_rand - (image_embedding @ v_rand) * image_embedding
         v_tang = v_tang / (v_tang.norm(dim=-1, keepdim=True))
 
@@ -340,18 +339,18 @@ def clip_dream(img_fp,
         U, S, Vt = jacob_svd(save_path=save_path,
                              jacob=jacob,
                              sv_indices=[sv_index])
-
-        v_tang = U[:, sv_index].cuda()  # shape (512)
-
+        
+        U = torch.from_numpy(U)
+        v_tang = U[:, sv_index].to(device)  # shape (512)
+        
     # create dream in forward direction (direction of v_tang)
     data_list = [] # target #, step #, step loss, pixel max, pixel min, gradient norm
-    clip_dream_frames1 = []
     tgt_not_reached = 0
     tgt_num = 1
     img_dir1 = img.clone()
     
     print("Starting CLIP dream...")
-    while tgt_not_reached < 5:
+    while tgt_not_reached < 3:
         # get target
         target = math.cos(tgt_num * math.radians(theta)) * image_embedding + math.sin(tgt_num * math.radians(theta)) * v_tang
 
@@ -363,7 +362,8 @@ def clip_dream(img_fp,
                                                                     threshold=threshold,
                                                                     lr=lr,
                                                                     max_iters=max_iters,
-                                                                    num_cutouts=num_cutouts)
+                                                                    num_cutouts=num_cutouts,
+                                                                    save_every=50)
 
         print(f"Reached point {tgt_num}")
         
@@ -374,21 +374,19 @@ def clip_dream(img_fp,
         # ensures that we count the number of intermediate targets not reached
         elif (not took_max_steps) and tgt_not_reached > 0:
             tgt_not_reached = 0
-            
-        tgt_num += 1
 
         # save clipped image
         img_clipped = torch.clamp(input=img_dir1, min=0, max=1)
-        clip_dream_frames1.append(img_clipped.permute(0, 2, 3, 1)) # append img with shape (1, H, W, C)
         utils.save_image(img_clipped.float().squeeze(), save_path + f"/CLIP_dream/dream_iter{tgt_num:>04d}.png")
         
+        tgt_num += 1
+        
     # create dream in backward direction (direction of -v_tang)
-    clip_dream_frames2 = []
     tgt_not_reached = 0
     tgt_num = -1
     img_dir2 = img.clone()
     
-    while tgt_not_reached < 5:
+    while tgt_not_reached < 3:
         # get target
         target = math.cos(tgt_num * math.radians(theta)) * image_embedding + math.sin(tgt_num * math.radians(theta)) * v_tang
 
@@ -400,7 +398,8 @@ def clip_dream(img_fp,
                                                                     threshold=threshold,
                                                                     lr=lr,
                                                                     max_iters=max_iters,
-                                                                    num_cutouts=num_cutouts)
+                                                                    num_cutouts=num_cutouts,
+                                                                    save_every=50)
 
         print(f"Reached point {tgt_num}")
         
@@ -411,32 +410,49 @@ def clip_dream(img_fp,
         # ensures that we count the number of intermediate targets not reached
         elif (not took_max_steps) and tgt_not_reached > 0:
             tgt_not_reached = 0
-            
-        tgt_num -= 1
 
         # save clipped image
         img_clipped = torch.clamp(input=img_dir2, min=0, max=1)
-        clip_dream_frames2.append(img_clipped.permute(0, 2, 3, 1)) # append img with shape (1, H, W, C)
-        utils.save_image(img_clipped.float().squeeze(), save_path + f"CLIP_dream/dream_iter_neg{-tgt_num:>04d}.png")
+        utils.save_image(img_clipped.float().squeeze(), save_path + f"/CLIP_dream/dream_iter_neg{-tgt_num:>04d}.png")
+        
+        tgt_num -= 1
         
     df = pandas.DataFrame(data_list, columns=["Target #", "Step #", "Step loss", "Pixel max", "Pixel min", "Gradient norm"])
     df.to_csv(save_path + f"/experiment_data.csv")
-    
-    clip_dream_frames2.reverse()
-    
-    clip_dream_video = clip_dream_frames2 + [img.permute(0, 2, 3, 1)] + clip_dream_frames1
-    clip_dream_video = torch.cat(clip_dream_video, dim=0) # shape (N, H, W, C)
-    io.write_video(filename=save_path + "/clip_dream_vid.mp4")
 
-    # # create video
-    # if make_vid:
-    #     make_video(frames_path=title)
+    # create video
+    make_video(frames_path=save_path + "/CLIP_dream")
     
     print(f"Optimization is done! View your CLIP dream at: {save_path}/clip_dream.mp4")
             
 
-def make_video(frames_path, fps=5):
-    os.system(f"ffmpeg -framerate {fps} -i ./Images/{frames_path}/dream_iter%04d.png -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p ./Images/{frames_path}/clip_dream.mp4")
+def make_video(frames_path, fps=15):
+    
+    frames = [f for f in os.listdir(frames_path) if os.path.isfile(os.path.join(frames_path, f))]
+    
+    frames_p = []
+    frames_n = []
+    
+    for name in frames:
+        if "neg" in name:
+            frames_n.append(name)
+        else:
+            frames_p.append(name)
+            
+    frames_p.sort()
+    frames_n.sort()
+    frames_n.reverse()
+    
+    i = 0
+    for i in range(len(frames)):
+        if i < len(frames_n):
+            os.rename(os.path.join(frames_path, frames_n[i]), 
+                      os.path.join(frames_path, f"dream_frame{i:>04d}.png"))
+        else:
+            os.rename(os.path.join(frames_path, frames_p[i - len(frames_n)]), 
+                      os.path.join(frames_path, f"dream_frame{i:>04d}.png"))
+    
+    os.system(f"ffmpeg -framerate {fps} -i {frames_path}/dream_frame%04d.png -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p {frames_path}/clip_dream.mp4")
 
 
 if __name__ == "__main__":
