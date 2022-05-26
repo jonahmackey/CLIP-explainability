@@ -17,6 +17,9 @@ from torch.fft import *
 from clip import load, tokenize
 
 
+perceptor, normalize_image = load("ViT-B/32", jit=False)
+
+
 def rand_cutout(image, size, center_bias=False, center_focus=2):
     width = image.shape[-1]
     min_offset = 0
@@ -216,7 +219,6 @@ def jacob_svd(jacob, save_path, sv_indices=[], save_results=True):
     return U, S, Vt
 
 
-
 def push_img_to_embedding(img, 
                           tgt_embed, 
                           tgt_num, 
@@ -267,8 +269,7 @@ def push_img_to_embedding(img,
 
 
 def clip_dream(img_fp,
-               exp_name,
-               save_date,
+               save_path,
                theta,
                sv_index,
                rand_dir,
@@ -289,11 +290,6 @@ def clip_dream(img_fp,
     The first 511 columns of U live in the tangent space of E, each corresponding to a singular value that 
     indicates this
     """
-    if save_date:
-        save_path = "./Results/" + datetime.now().strftime("%y%m%d-%H%M%S-") + exp_name 
-    else:
-        save_path = "./Results/" + exp_name 
-    
     try:
         os.makedirs(save_path)
         os.makedirs(save_path + "/CLIP_dream")
@@ -490,11 +486,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # load CLIP model
-    perceptor, normalize_image = load(args.img_encoder, jit=False)
+    # perceptor, normalize_image = load(args.img_encoder, jit=False)
+    
+    save_path = "./Results/" + args.exp_name + datetime.now().strftime("-%y%m%d-%H%M%S") 
+    
+    file = open(save_path + "/myfile.txt", "w")
+    command = f"python3 dream.py --img_encoder {args.img_encoder} --exp_name {args.exp_name} --img_fp {args.img_fp} --sv_index {args.sv_index}" \
+        + f" --rand_dir {args.rand_dir} --theta {args.theta} --threshold {args.threshold} --max_iters {args.max_iters} --eps {args.eps}" \
+        + f" --num_cutouts {args.num_cutuots} --lr {args.lr} --freq_reg {args.freq_reg}"
+    _ = file.write(command)
+    file.close()
 
     clip_dream(img_fp=args.img_fp,
-               exp_name=args.exp_name,
-               save_date=True,
+               save_path=save_path,
                theta=args.theta,
                sv_index=args.sv_index,
                rand_dir=args.rand_dir,
