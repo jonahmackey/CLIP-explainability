@@ -427,32 +427,86 @@ def clip_dream(img_fp,
 def visualize_dream_loss(data_fp, threshold, save_path):
     df = pandas.read_csv(filepath_or_buffer=data_fp)
     
-    steps_lst = df[df['Target #'] == 1]['Step #'].to_numpy()
-    markers = [steps_lst.max()]
+    # direction 1
+    steps_lst_p = df[df['Target #'] == 1]['Step #'].to_numpy()
+    markers_p = [steps_lst_p.max()]
     
     for target_num in range(2, df['Target #'].to_numpy().max() + 1):
-        steps = df[df['Target #'] == target_num]['Step #'].to_numpy() + steps_lst.max()
-        steps_lst = np.concatenate((steps_lst, steps))
-        markers.append(steps_lst.max())
+        steps_p = df[df['Target #'] == target_num]['Step #'].to_numpy() + steps_lst_p.max()
+        steps_lst_p = np.concatenate((steps_lst_p, steps_p))
+        markers_p.append(steps_lst_p.max())
         
-    loss_lst = df['Step loss'].to_numpy()
+    loss_lst_p = df[df['Target #'] > 0]['Step loss'].to_numpy()
     
-    plt.figure(figsize=(16, 8))
-    plt.title("CLIP Dream optimization loss")
+    fig = plt.figure(figsize=(10, 10))
+    
+    fig.add_subplot(2, 1, 1)
+    plt.title("CLIP Dream optimization loss (1)")
     plt.xlabel("Step #")
     plt.ylabel("Step loss")
     
-    plt.xlim([0, steps_lst.max() + 1])
-    plt.ylim([0, 1.2 * loss_lst[2:].max()])
-    plt.plot(steps_lst, loss_lst, 'bo-', lw=1.5)
+    plt.xlim([0, steps_lst_p.max() + 1])
+    plt.ylim([0, 1.2 * loss_lst_p[2:].max()])
+    plt.plot(steps_lst_p, loss_lst_p, 'bo-', lw=1.5)
     
-    plt.plot([0, steps_lst.max()], [threshold, threshold], 'r-', lw=2, dashes=[2, 2])
+    plt.plot([0, steps_lst_p.max()], [threshold, threshold], 'r-', lw=2, dashes=[2, 2])
     
-    for i in range(len(markers)):
-        plt.plot([markers[i], markers[i]], [0, 5], 'r-', lw=2, dashes=[2, 2])
+    for i in range(len(markers_p)):
+        plt.plot([markers_p[i], markers_p[i]], [0, 5], 'r-', lw=2, dashes=[2, 2])
+        
+    # direction 2
+    steps_lst_n = df[df['Target #'] == -1]['Step #'].to_numpy()
+    markers_n = [steps_lst_n.min()]
+    
+    for target_num in range(-2, df['Target #'].to_numpy().min() - 1, -1):
+        steps_n = df[df['Target #'] == target_num]['Step #'].to_numpy() + steps_lst_n.max()
+        steps_lst_n = np.concatenate((steps_lst_n, steps_n))
+        markers_n.append(steps_lst_n.min())
+        
+    loss_lst_n = df[df['Target #'] < 0]['Step loss'].to_numpy()
+    
+    fig.add_subplot(2, 1, 2)
+    plt.title("CLIP Dream optimization loss (2)")
+    plt.xlabel("Step #")
+    plt.ylabel("Step loss")
+    
+    # plt.xlim([0, steps_lst_n.max() + 1])
+    plt.ylim([0, 1.2 * loss_lst_n[2:].max()])
+    plt.plot(steps_lst_n, loss_lst_n, 'bo-', lw=1.5)
+    
+    plt.plot([0, steps_lst_n.max()], [threshold, threshold], 'r-', lw=2, dashes=[2, 2])
+    
+    for i in range(len(markers_n)):
+        plt.plot([markers_n[i], markers_n[i]], [0, 5], 'r-', lw=2, dashes=[2, 2])
     
     plt.savefig(save_path + "/clip_dream_loss.png")
     
+
+
+#  # Plot the RGB channels of sv preimage separately (yellow = 1, purple = 0)
+#             fig = plt.figure(figsize=(30, 10))
+
+#             fig.add_subplot(1, 3, 1)
+#             plt.axis("off")
+#             plt.title("red")
+#             plt.imshow(sv_preimage[0], vmin=-vmax, vmax=vmax, cmap='PiYG')
+#             plt.colorbar(shrink=0.5)
+
+#             fig.add_subplot(1, 3, 2)
+#             plt.axis("off")
+#             plt.title("green")
+#             plt.imshow(sv_preimage[1], vmin=-vmax, vmax=vmax, cmap='PiYG')
+#             plt.colorbar(shrink=0.5)
+
+#             fig.add_subplot(1, 3, 3)
+#             plt.axis("off")
+#             plt.title("blue")
+#             plt.imshow(sv_preimage[2], vmin=-vmax, vmax=vmax, cmap='PiYG')
+#             plt.colorbar(shrink=0.5)
+            
+#             plt.savefig(save_path + f"/SV_jacob/sv_preimage{sv_index + 1}.png")
+
+
 
 def make_video(frames_path, fps=15):
     
