@@ -414,13 +414,43 @@ def clip_dream(img_fp,
         tgt_num -= 1
         
     df = pandas.DataFrame(data_list, columns=["Target #", "Step #", "Step loss", "Pixel max", "Pixel min", "Gradient norm"])
-    df.to_csv(save_path + f"/experiment_data.csv")
+    df.to_csv(save_path + "/experiment_data.csv")
 
     # create video
     make_video(frames_path=save_path + "/CLIP_dream")
     
     print(f"Optimization is done! View your CLIP dream at: {save_path}/clip_dream.mp4")
-            
+    
+
+def visualize_dream_loss(data_fp, threshold, save_path):
+    df = pandas.read_csv(filepath_or_buffer=data_fp)
+    
+    steps_lst = df[df['Target #'] == 1]['Step #'].to_numpy()
+    markers = [steps_lst.max()]
+    
+    for target_num in range(2, df['Target #'].to_numpy().max() + 1):
+        steps = df[df['Target #'] == target_num]['Step #'].to_numpy() + steps_lst.max()
+        steps_lst = np.concatenate((steps_lst, steps))
+        markers.append(steps_lst.max())
+        
+    loss_lst = df['Step loss'].to_numpy()
+    
+    plt.figure(figsize=(16, 8))
+    plt.title("CLIP Dream optimization loss")
+    plt.xlabel("Step #")
+    plt.ylabel("Step loss")
+    
+    plt.xlim([0, steps_lst.max() + 1])
+    plt.ylim([0, 1.2 * loss_lst[2:].max()])
+    plt.plot(steps_lst, loss_lst, 'bo-', lw=1.5)
+    
+    plt.plot([0, steps_lst.max()], [threshold, threshold], 'r-', lw=2, dashes=[2, 2])
+    
+    for i in range(len(markers)):
+        plt.plot([markers[i], markers[i]], [0, 5], 'r-', lw=2, dashes=[2, 2])
+    
+    plt.savefig(save_path + "/clip_dream_loss.png")
+    
 
 def make_video(frames_path, fps=15):
     

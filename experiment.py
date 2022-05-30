@@ -1,4 +1,4 @@
-from dream import clip_dream
+from dream import clip_dream, visualize_dream_loss
 
 from datetime import datetime
 
@@ -48,7 +48,7 @@ for img_fp in img_lst:
                 for lr in lr_lst:
                     exp_name = img_fp[9:-3]
                     
-                    save_path = "./Results/" + exp_name + datetime.now().strftime("-%y%m%d-%H%M%S") 
+                    save_path = "./Results/" + datetime.now().strftime("%y%m%d-%H%M%S-") + exp_name
 
                     file = open(save_path + "/myfile.txt", "w")
                     params = f"Img encoder: {'ViT-B/32'}\n" \
@@ -77,3 +77,7 @@ for img_fp in img_lst:
                                 freq_reg=freq_reg,
                                 lr=lr,
                                 max_iters=5000)
+                    
+                    visualize_dream_loss(data_fp=save_path + "/experiment_data.csv", threshold=threshold, save_path=save_path)
+                    
+                    
