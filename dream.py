@@ -19,6 +19,8 @@ from clip import load, tokenize
 
 perceptor, normalize_image = load("ViT-B/32", jit=False)
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 def rand_cutout(image, size, center_bias=False, center_focus=2):
     width = image.shape[-1]

@@ -42,29 +42,14 @@ lr_lst = [
 ]
 
 for img_fp in img_lst:
+    i = 0
     for sv_index in sv_index_lst:
         for threshold in threshold_lst:
             for freq_reg in freq_reg_lst:
                 for lr in lr_lst:
-                    exp_name = img_fp[9:-3]
+                    exp_name = img_fp[9:-4]
                     
-                    save_path = "./Results/" + datetime.now().strftime("%y%m%d-%H%M%S-") + exp_name
-
-                    file = open(save_path + "/myfile.txt", "w")
-                    params = f"Img encoder: {'ViT-B/32'}\n" \
-                        + f"img_fp: {img_fp}" \
-                        + f"save_path: {save_path}\n" \
-                        + f"theta: {1}" \
-                        + f"sv_index {sv_index}" \
-                        + f"rand_dir: {False}" \
-                        + f"threshold: {threshold}" \
-                        + f"eps: {1e-6}" \
-                        + f"num_cutouts: {32}" \
-                        + f"freq_reg: {freq_reg}" \
-                        + f"lr: {lr}" \
-                        + f"max_iters: {5000}"
-                    _ = file.write(params)
-                    file.close()
+                    save_path = "./Results/" + exp_name + f"{i}" # datetime.now().strftime("%y%m%d-%H%M%S-") + exp_name
 
                     clip_dream(img_fp=img_fp,
                                 save_path=save_path,
@@ -78,6 +63,23 @@ for img_fp in img_lst:
                                 lr=lr,
                                 max_iters=5000)
                     
+                    file = open(save_path + "/myfile.txt", "w")
+                    params = f"Img encoder: {'ViT-B/32'}\n" \
+                        + f"img_fp: {img_fp}\n" \
+                        + f"save_path: {save_path}\n" \
+                        + f"theta: {1}\n" \
+                        + f"sv_index {sv_index}\n" \
+                        + f"rand_dir: {False}\n" \
+                        + f"threshold: {threshold}\n" \
+                        + f"eps: {1e-6}\n" \
+                        + f"num_cutouts: {32}\n" \
+                        + f"freq_reg: {freq_reg}\n" \
+                        + f"lr: {lr}\n" \
+                        + f"max_iters: {3000}"
+                    _ = file.write(params)
+                    file.close()
+                    
                     visualize_dream_loss(data_fp=save_path + "/experiment_data.csv", threshold=threshold, save_path=save_path)
                     
+                    i += 1
                     
