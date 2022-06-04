@@ -456,14 +456,17 @@ def visualize_dream_loss(data_fp, threshold, save_path):
         
     # direction 2
     steps_lst_n = df[df['Target #'] == -1]['Step #'].to_numpy()
-    markers_n = [steps_lst_n.min()]
+    markers_n = [steps_lst_n.max()]
     
     for target_num in range(-2, df['Target #'].to_numpy().min() - 1, -1):
         steps_n = df[df['Target #'] == target_num]['Step #'].to_numpy() + steps_lst_n.max()
         steps_lst_n = np.concatenate((steps_lst_n, steps_n))
-        markers_n.append(steps_lst_n.min())
+        markers_n.append(steps_lst_n.max())
         
     loss_lst_n = df[df['Target #'] < 0]['Step loss'].to_numpy()
+    
+    print(steps_lst_n)
+    print(markers_n)
     
     fig.add_subplot(2, 1, 2)
     plt.title("CLIP Dream optimization loss (2)")
