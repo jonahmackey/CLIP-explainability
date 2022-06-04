@@ -4,12 +4,12 @@ from datetime import datetime
 
 
 img_lst = [
-    "./Images/bananas.jpg",
-    "./Images/bird.jpg",
-    "./Images/crab.png",
-    "./Images/david.jpg",
-    "./Images/dog.jpg",
-    "./Imaegs/street_scene.jpg",
+    # "./Images/bananas.jpg",
+    # "./Images/bird.jpg",
+    # "./Images/crab.png",
+    # "./Images/david.jpg",
+    # "./Images/dog.jpg",
+    "./Images/street_scene.jpg",
     "./Images/two_bananas.jpg",
     "./Images/two_dogs.jpg",
     "./Images/xavier.jpg"
@@ -17,32 +17,33 @@ img_lst = [
 
 sv_index_lst = [
     0,
-    1,
-    2,
-    3,
-    4,
-    5
+    # 1,
+    # 2,
+    # 3,
+    # 4,
+    # 5
 ]
 
 threshold_lst = [
     0.1,
-    0.05,
+    # 0.05,
 ]
 
 freq_reg_lst = [
-    None,
+    # None,
     "norm"
 ]
 
 lr_lst = [
-    1,
+    # 100,
     250,
-    500,
-    750
+    # 500,
+    # 750
 ]
 
 for img_fp in img_lst:
     i = 0
+    
     for sv_index in sv_index_lst:
         for threshold in threshold_lst:
             for freq_reg in freq_reg_lst:
@@ -61,7 +62,7 @@ for img_fp in img_lst:
                                 num_cutouts=32,
                                 freq_reg=freq_reg,
                                 lr=lr,
-                                max_iters=5000)
+                                max_iters=3000)
                     
                     file = open(save_path + "/myfile.txt", "w")
                     params = f"Img encoder: {'ViT-B/32'}\n" \
