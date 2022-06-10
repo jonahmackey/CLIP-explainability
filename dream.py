@@ -485,33 +485,7 @@ def visualize_dream_loss(data_fp, threshold, save_path):
     plt.savefig(save_path + "/clip_dream_loss.png")
     
 
-
-#  # Plot the RGB channels of sv preimage separately (yellow = 1, purple = 0)
-#             fig = plt.figure(figsize=(30, 10))
-
-#             fig.add_subplot(1, 3, 1)
-#             plt.axis("off")
-#             plt.title("red")
-#             plt.imshow(sv_preimage[0], vmin=-vmax, vmax=vmax, cmap='PiYG')
-#             plt.colorbar(shrink=0.5)
-
-#             fig.add_subplot(1, 3, 2)
-#             plt.axis("off")
-#             plt.title("green")
-#             plt.imshow(sv_preimage[1], vmin=-vmax, vmax=vmax, cmap='PiYG')
-#             plt.colorbar(shrink=0.5)
-
-#             fig.add_subplot(1, 3, 3)
-#             plt.axis("off")
-#             plt.title("blue")
-#             plt.imshow(sv_preimage[2], vmin=-vmax, vmax=vmax, cmap='PiYG')
-#             plt.colorbar(shrink=0.5)
-            
-#             plt.savefig(save_path + f"/SV_jacob/sv_preimage{sv_index + 1}.png")
-
-
-
-def make_video(frames_path, fps=15):
+def make_video(frames_path, fps=5):
     
     frames = [f for f in os.listdir(frames_path) if os.path.isfile(os.path.join(frames_path, f))]
     
