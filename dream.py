@@ -188,13 +188,12 @@ def jacob_svd(jacob, save_path, sv_indices=[], save_results=True):
         
         plt.savefig(save_path + "/SV_jacob/sing_vals.png")
         
-        # visualize and save the preimage of the left singular vectors in pixel space
+        # visualize and right singular vectors
         for sv_index in sv_indices:
-            singular_value = U[:, sv_index] # shape (512)
-            sv_preimage, _, _, _ = np.linalg.lstsq(jacob, singular_value, rcond=None)
-            sv_preimage = np.reshape(sv_preimage, (3, im_size, im_size)) # shape (3, im_size, im_size)
+            singular_vector = Vt[sv_index] # shape (512)
+            singular_vector = np.reshape(singular_vector, (3, im_size, im_size)) # shape (3, im_size, im_size)
             
-            vmin, vmax = np.quantile(a=np.absolute(sv_preimage), q=torch.tensor([0.01, 0.99]))
+            vmin, vmax = np.quantile(a=np.absolute(singular_vector), q=torch.tensor([0.01, 0.99]))
             
             # Plot the RGB channels of sv preimage separately (yellow = 1, purple = 0)
             fig = plt.figure(figsize=(30, 10))
@@ -202,22 +201,22 @@ def jacob_svd(jacob, save_path, sv_indices=[], save_results=True):
             fig.add_subplot(1, 3, 1)
             plt.axis("off")
             plt.title("red")
-            plt.imshow(sv_preimage[0], vmin=-vmax, vmax=vmax, cmap='PiYG')
+            plt.imshow(singular_vector[0], vmin=-vmax, vmax=vmax, cmap='PiYG')
             plt.colorbar(shrink=0.5)
 
             fig.add_subplot(1, 3, 2)
             plt.axis("off")
             plt.title("green")
-            plt.imshow(sv_preimage[1], vmin=-vmax, vmax=vmax, cmap='PiYG')
+            plt.imshow(singular_vector[1], vmin=-vmax, vmax=vmax, cmap='PiYG')
             plt.colorbar(shrink=0.5)
 
             fig.add_subplot(1, 3, 3)
             plt.axis("off")
             plt.title("blue")
-            plt.imshow(sv_preimage[2], vmin=-vmax, vmax=vmax, cmap='PiYG')
+            plt.imshow(singular_vector[2], vmin=-vmax, vmax=vmax, cmap='PiYG')
             plt.colorbar(shrink=0.5)
             
-            plt.savefig(save_path + f"/SV_jacob/sv_preimage{sv_index + 1}.png")
+            plt.savefig(save_path + f"/SV_jacob/sv_right{sv_index + 1}.png")
 
     return U, S, Vt
 
