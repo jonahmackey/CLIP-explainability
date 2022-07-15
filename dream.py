@@ -121,6 +121,7 @@ def embed_image(img, img_fft_abs=1, eps=1e-6, num_cutouts=32, freq_reg=None):
     image_embed = perceptor.encode_image(image_into)  # shape (num_cutouts, 512)
     image_embed = image_embed / image_embed.norm(dim=-1, keepdim=True)
     image_embed = torch.mean(image_embed, dim=0)  # shape (512)
+    image_embed = image_embed / image_embed.norm(dim=-1, keepdim=True)
 
     return image_embed
 
